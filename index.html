@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a56a0">
+<title>Consulta OC — Prime</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+/* Padrão visual dos apps da Prime (igual ao Orçamento de Chapas e à Programação): azul #1a56a0 e branco */
+:root{
+  --papel:#d6e4f4; --cartao:#ffffff; --tinta:#1b2b40; --tinta2:#4a6a8f; --tinta3:#7a92ac;
+  --kraft:#1a56a0; --kraft-claro:#eef4ff; --campo:#f4f8ff; --borda:#b8cfe8; --linha:#dce8fa; --linha2:#eef3fa;
+  --ok:#2e7d32; --alerta:#c62828; --alerta-bg:#fdecea; --ok-bg:#e8f5e9;
+  --fila:#9a6400; --fila-bg:#fff6dc;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--papel);color:var(--tinta);
+  font-size:15px;line-height:1.45;padding-bottom:30px;min-height:100vh}
+
+/* cabeçalho em cartão azul */
+.topo{max-width:640px;margin:0 auto;padding:14px 12px 0}
+.header{background:var(--kraft);border-radius:16px;padding:16px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo-box{width:46px;height:46px;border-radius:10px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center}
+.logo-box svg{width:34px;height:34px}
+.header-txt{flex:1;min-width:150px}
+.header-txt h1{color:#fff;font-size:21px;font-weight:700;line-height:1.2}
+.header-txt p{color:#a8c8f0;font-size:14px;margin-top:3px}
+.header a{background:#fff;color:var(--kraft);border-radius:8px;padding:8px 14px;font-size:14px;font-weight:800;
+  text-decoration:none;white-space:nowrap}
+main{max-width:640px;margin:0 auto;padding:14px 12px 30px}
+.card{background:var(--cartao);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+label{display:block;font-size:11.5px;font-weight:700;color:var(--tinta2);
+  text-transform:uppercase;letter-spacing:.4px;margin:10px 0 4px}
+input{width:100%;padding:9px 11px;border:2px solid var(--borda);border-radius:10px;
+  font:inherit;background:var(--campo);color:var(--tinta);outline:none}
+input:focus{border-color:var(--kraft);background:#fff}
+.row{display:flex;gap:10px;align-items:flex-end}.row>*{flex:1;min-width:0}
+.btn{display:inline-block;border:2px solid var(--kraft);border-radius:8px;padding:9px 18px;cursor:pointer;
+  font:inherit;font-size:15px;font-weight:700;background:var(--kraft);color:#fff}
+.btn.sec{background:var(--campo);color:var(--kraft);border-color:var(--borda)}
+.btn.sec:hover{border-color:var(--kraft)}
+.btn.mini{padding:5px 12px;font-size:13px}
+.acoes{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.nota{font-size:13px;color:var(--tinta2);margin-top:6px}
+
+.fila-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;cursor:pointer;
+  border-radius:20px;border:1.5px solid var(--borda);background:var(--campo);color:var(--tinta);
+  font-size:11px;font-weight:600;white-space:nowrap;transition:all .15s;user-select:none}
+.fila-chip:hover{background:var(--kraft-claro);border-color:var(--kraft)}
+.fila-chip.ok{border-color:#c3e3c5;background:var(--ok-bg);color:var(--ok)}
+.fila-chip.pul{border-color:#f3c1bc;background:var(--alerta-bg);color:var(--alerta);opacity:.75}
+.statusRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.statusRow .fila-chip{white-space:normal}
+
+.resultado{border-radius:14px;padding:14px 16px;margin-top:10px;border:1.5px solid}
+.resultado.produzido{background:var(--ok-bg);border-color:#c3e3c5;color:#1b5e20}
+.resultado.fila{background:var(--fila-bg);border-color:#f0d78c;color:var(--fila)}
+.resultado.nada{background:var(--cartao);border-color:var(--borda);color:var(--tinta2)}
+.resultado h3{font-size:17px;font-weight:800;margin-bottom:6px}
+.resumoOF{background:#fff;border:1.5px solid var(--borda);border-radius:10px;padding:12px 14px;margin-top:6px;font-size:14px}
+.resumoOF .falta{color:var(--fila)}
+.avisoFiltro{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--fila-bg);border:1px solid #f0d78c;color:var(--fila);font-size:13px}
+.avisoFiltro .btn{margin-top:6px}
+.itemAchado{background:rgba(255,255,255,.6);border-radius:8px;padding:8px 10px;margin-top:8px;font-size:13.5px}
+.itemAchado b{display:block;font-size:14.5px;font-weight:700}
+.itemAchado span{color:var(--tinta2)}
+.itemAchado.parcial{background:#ffe0bd;border-left:5px solid #e8751a}
+.itemAchado.parcial b,.itemAchado.parcial span{color:#9a4a00}
+.itemAchado .tagParcial{display:inline-block;margin-top:4px;font-weight:700;color:#b85a00}
+.resumoOF .parcial{color:#c8620a}
+</style>
+</head>
+<body>
+<div class="topo">
+  <header class="header">
+    <div class="logo-box"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="42" cy="42" r="24" fill="none" stroke="#1a56a0" stroke-width="10"/><line x1="60" y1="60" x2="84" y2="84" stroke="#1a56a0" stroke-width="11" stroke-linecap="round"/></svg></div>
+    <div class="header-txt"><h1>Consulta OC</h1><p>Prime Ondulados · produzido ou na fila</p></div>
+    <a href="https://marcilianocamargo-stack.github.io/Programa-o-Onduladeira/">← Programação</a>
+  </header>
+</div>
+<main>
+  <div class="card">
+    <p class="nota" style="margin-top:0">Consulta rápida: diz se um pedido já foi <b>produzido</b> ou ainda está <b>na fila de programação</b>. Lê direto do app de Controle de Produção (atualizado a cada palete etiquetado) e da programação do dia — não precisa conectar pastas e funciona em qualquer aparelho. Atualiza sozinho a cada minuto.</p>
+
+    <div class="statusRow">
+      <span id="dupChip" class="fila-chip" onclick="atualizaDados()">Carregando produção...</span>
+    </div>
+    <div class="statusRow">
+      <span id="dupChipFila" class="fila-chip" onclick="atualizaDados()">Carregando programação...</span>
+      <button type="button" id="dupBtnAtualizar" class="btn mini sec" onclick="atualizaDados()">🔄 Atualizar agora</button>
+    </div>
+  </div>
+
+  <form id="formBusca" class="card" onsubmit="return buscar(event)">
+    <p class="nota" style="margin-top:0">Preencha só o que você tiver — a busca já roda enquanto você digita. Só a OC já basta (ela quase não se repete); só a medida, só o OP ou só o OF também buscam.</p>
+    <div class="row">
+      <div><label>OC (ordem de compra)</label><input id="bOC" autocomplete="off" placeholder="ex.: 1518" oninput="agendaBusca()"></div>
+      <div><label>OP</label><input id="bOP" autocomplete="off" placeholder="ex.: 261788" oninput="agendaBusca()"></div>
+      <div><label>OF</label><input id="bOF" autocomplete="off" placeholder="ex.: 1417" oninput="agendaBusca()"></div>
+    </div>
+    <div class="row">
+      <div><label>Largura (mm)</label><input id="bLarg" type="number" inputmode="numeric" oninput="agendaBusca()"></div>
+      <div><label>Compr. (mm)</label><input id="bCompr" type="number" inputmode="numeric" oninput="agendaBusca()"></div>
+      <div><label>Qtde</label><input id="bQtde" type="number" inputmode="numeric" oninput="agendaBusca()"></div>
+    </div>
+    <label>Cliente <span style="text-transform:none;font-weight:400">(opcional — ajuda a refinar)</span></label>
+    <input id="bCliente" autocomplete="off" placeholder="ex.: PCBOX" oninput="agendaBusca()">
+    <div class="acoes">
+      <button class="btn sec" type="button" onclick="limpaBusca()">Limpar</button>
+    </div>
+  </form>
+
+  <div id="resultados"></div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* ===== lógica de busca/parsing (a mesma de antes; só a ORIGEM dos dados mudou) ===== */
+
+function dataCelula(v) {
+  if (v == null || v === '') return '';
+  if (typeof v === 'number') {
+    try { return XLSX.SSF.format('dd/mm/yyyy', v); } catch (e) { return ''; }
+  }
+  return String(v).trim();
+}
+
+/* Coluna do tipo de papel (ex.: P25B, P50D) — o nome varia entre arquivos:
+   "PAPEL" nos relatórios de produção, "P.O." na planilha de programação. */
+function colPapel(colMap) {
+  for (const k of ['PAPEL', 'P.O.', 'P.O', 'PO']) {
+    if (colMap[k] != null) return colMap[k];
+  }
+  return null;
+}
+
+/* "0,737 X 1,846" (metros, vírgula decimal) → { largMM, comprMM } */
+function parseMedida(s) {
+  const m = String(s || '').trim().match(/^(\d+(?:[.,]\d+)?)\s*[x×X]\s*(\d+(?:[.,]\d+)?)$/);
+  if (!m) return null;
+  const a = parseFloat(m[1].replace(',', '.'));
+  const b = parseFloat(m[2].replace(',', '.'));
+  if (!a || !b) return null;
+  return { largMM: Math.round(a * 1000), comprMM: Math.round(b * 1000) };
+}
+
+/* Assinatura das abas do arquivo de programação (fila pendente). */
+const COLS_FILA = ['CLIENTE', 'OC', 'DATA PEDIDO', 'QTDE PEDIDO'];
+
+function extraiLinhasFilaXLSX(sheet, arquivo) {
+  const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' });
+  // não tem coluna "OF" própria nessa planilha — o número vem só no título da
+  // aba, tipo "PROGRAMAÇÃO ONDULADEIRA - ABAPEL — OF: 001417".
+  const tituloTxt = aoa.slice(0, 3).map(r => r.join(' ')).join(' ');
+  const mOF = tituloTxt.match(/OF:\s*0*(\d+)/i);
+  const ofTitulo = mOF ? mOF[1] : '';
+  let hIdx = -1, colMap = {}, colLarg = null, colCompr = null;
+  for (let i = 0; i < aoa.length; i++) {
+    const row = aoa[i].map(c => String(c == null ? '' : c).trim().toUpperCase());
+    if (COLS_FILA.every(k => row.includes(k))) {
+      hIdx = i;
+      aoa[i].forEach((v, ci) => {
+        const k = String(v == null ? '' : v).trim().toUpperCase();
+        if (k && colMap[k] == null) colMap[k] = ci;
+        if (k.startsWith('LARGURA') && colLarg == null) colLarg = ci;
+        if (k.startsWith('COMPRIMENTO') && colCompr == null) colCompr = ci;
+      });
+      break;
+    }
+  }
+  if (hIdx < 0 || colLarg == null || colCompr == null) return [];
+  const colPap = colPapel(colMap);
+  const linhas = [];
+  for (let i = hIdx + 1; i < aoa.length; i++) {
+    const row = aoa[i];
+    const cliente = String(row[colMap['CLIENTE']] == null ? '' : row[colMap['CLIENTE']]).trim();
+    if (!cliente) continue;
+    const larg = +row[colLarg] || 0, compr = +row[colCompr] || 0;
+    if (!larg || !compr) continue;
+    linhas.push({
+      cliente,
+      op: String(row[colMap['OP']] == null ? '' : row[colMap['OP']]).trim(),
+      of: ofTitulo,
+      oc: String(row[colMap['OC']] == null ? '' : row[colMap['OC']]).trim(),
+      papel: colPap != null ? String(row[colPap] == null ? '' : row[colPap]).trim() : '',
+      data: dataCelula(row[colMap['DATA PEDIDO']]),
+      largMM: Math.round(larg * 1000), comprMM: Math.round(compr * 1000),
+      qtde: +row[colMap['QTDE PEDIDO']] || 0,
+      arquivo, status: 'fila'
+    });
+  }
+  return linhas;
+}
+
+const normTxtDup = s => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+/* Tira tudo que não é letra/número e, se sobrar só dígitos, tira os zeros à
+   esquerda — "0039" e "39" têm que bater, é a mesma OC digitada diferente. */
+function normOC(s) {
+  let t = String(s || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (/^\d+$/.test(t)) t = t.replace(/^0+(?=\d)/, '');
+  return t;
+}
+function clienteBate(a, b) {
+  const x = normTxtDup(a), y = normTxtDup(b);
+  if (x.length < 3 || y.length < 3) return x === y;
+  return x === y || x.includes(y) || y.includes(x);
+}
+
+
+/* ===== fontes de dados (nenhuma pasta do computador) =====
+   Produção: JSONs publicados pela VPS no repositório do app de Controle de Produção
+     - producao-viva.json   → soma dos paletes etiquetados, por OP; atualizado a cada palete
+     - producao-antiga.json → carga única dos relatórios de turno (histórico desde 08/06/2026)
+   Fila: programacao-hoje.xlsx publicado no mesmo repositório (a mesma planilha que
+   antes era lida da pasta "programação"). */
+const BASE_DADOS = 'https://raw.githubusercontent.com/marcilianocamargo-stack/controle-producao-etiquetas/main/';
+const URL_VIVA = BASE_DADOS + 'producao-viva.json';
+const URL_ANTIGA = BASE_DADOS + 'producao-antiga.json';
+const URL_FILA = BASE_DADOS + 'programacao-hoje.xlsx';
+const REFRESH_MS = 60000;
+const ARQ_PRODUCAO = 'Controle de Produção'; // vai na coluna "Arquivo Fonte" do Excel/cópia (no cartão não aparece)
+
+let indiceProducao = null;   // [{cliente, op, of, oc, papel, data, largMM, comprMM, qtde, produzido, arquivo, status:'produzido'}]
+let indiceFila = null;       // mesma forma, status:'fila'
+let infoProducao = null;     // {parcial, vivaEm}
+let atualizando = false;
+let erroProducao = false, erroFila = false;
+
+const bust = () => '?t=' + Math.floor(Date.now() / 60000); // fura o cache de 5 min do raw do GitHub
+
+async function pegaJSON(url) {
+  const r = await fetch(url + bust(), { cache: 'no-store' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+function itemParaLinha(i, arquivo) {
+  return {
+    cliente: i.cliente || '', op: String(i.op || ''), of: i.of || '', oc: i.oc || '', papel: i.papel || '',
+    data: i.data || '', hora: i.hora || '', largMM: i.larg, comprMM: i.comp, qtde: i.qtde || 0, produzido: i.prod || 0,
+    arquivo, status: 'produzido'
+  };
+}
+
+function dataNum(s, hora) {
+  const m = String(s || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  const h = String(hora || '').match(/(\d{1,2}):(\d{2})/);
+  return (m ? +(m[3] + m[2] + m[1]) : 0) * 10000 + (h ? +h[1] * 100 + +h[2] : 0);
+}
+
+/* Junta histórico (relatórios) e produção atual. Chave = OP + medida (a mesma OP pode
+   ter dois pedidos de medidas diferentes). Na mesma OP+medida vale o MAIOR produzido
+   (as duas fontes cobrem o mesmo período, somar contaria duas vezes) e o cadastro
+   (cliente/OC completos) vem do app de Controle — nos PDFs antigos eles vêm cortados. */
+function mesclaProducao(antiga, viva) {
+  const mapa = new Map();
+  const chave = i => normOC(i.op) + '|' + i.largMM + '|' + i.comprMM;
+  (antiga || []).forEach(i => { const l = itemParaLinha(i, ARQ_PRODUCAO); mapa.set(chave(l), l); });
+  (viva || []).forEach(i => {
+    const novo = itemParaLinha(i, ARQ_PRODUCAO);
+    const k = chave(novo), ant = mapa.get(k);
+    if (ant) {
+      novo.produzido = Math.max(novo.produzido, ant.produzido);
+      if (!novo.qtde) novo.qtde = ant.qtde;
+      if (!novo.papel) novo.papel = ant.papel;
+      if (!novo.of) novo.of = ant.of;
+      if (dataNum(ant.data, ant.hora) > dataNum(novo.data, novo.hora)) { novo.data = ant.data; novo.hora = ant.hora; }
+    }
+    mapa.set(k, novo);
+  });
+  return [...mapa.values()];
+}
+
+async function carregaProducao() {
+  const [a, v] = await Promise.allSettled([pegaJSON(URL_ANTIGA), pegaJSON(URL_VIVA)]);
+  if (a.status !== 'fulfilled' && v.status !== 'fulfilled') throw new Error('sem dados de produção');
+  return {
+    linhas: mesclaProducao(a.value && a.value.itens, v.value && v.value.itens),
+    vivaEm: v.value ? v.value.atualizadoEm : null,
+    parcial: a.status !== 'fulfilled' || v.status !== 'fulfilled'
+  };
+}
+
+async function carregaFila() {
+  const r = await fetch(URL_FILA + bust(), { cache: 'no-store' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const wb = XLSX.read(await r.arrayBuffer(), { type: 'array' });
+  const linhas = [];
+  wb.SheetNames.forEach(sn => {
+    extraiLinhasFilaXLSX(wb.Sheets[sn], 'programacao-hoje.xlsx').forEach(l => linhas.push(l));
+  });
+  return linhas;
+}
+
+async function atualizaDados() {
+  if (atualizando) return;
+  atualizando = true;
+  atualizaChips();
+  const [p, f] = await Promise.allSettled([carregaProducao(), carregaFila()]);
+  if (p.status === 'fulfilled') {
+    indiceProducao = p.value.linhas; infoProducao = p.value; erroProducao = false;
+  } else erroProducao = true;
+  if (f.status === 'fulfilled') { indiceFila = f.value; erroFila = false; } else erroFila = true;
+  atualizando = false;
+  atualizaChips();
+  buscar(); // refaz a busca que estiver na tela com os dados novos
+}
+
+function horaDe(iso) {
+  // "2026-10-08T16:42:39" (horário de Brasília) → "16:42" (ou "08/10 16:42" se não for de hoje)
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
+  if (!m) return '';
+  const hoje = new Date();
+  const ehHoje = +m[1] === hoje.getFullYear() && +m[2] === hoje.getMonth() + 1 && +m[3] === hoje.getDate();
+  return ehHoje ? m[4] : m[3] + '/' + m[2] + ' ' + m[4];
+}
+
+function atualizaChips() {
+  const chip = $('dupChip'), chipF = $('dupChipFila'), btn = $('dupBtnAtualizar');
+  btn.disabled = atualizando;
+  btn.textContent = atualizando ? 'Atualizando...' : '🔄 Atualizar agora';
+
+  if (indiceProducao) {
+    const hora = infoProducao && infoProducao.vivaEm ? ' · atualizado ' + horaDe(infoProducao.vivaEm) : '';
+    const aviso = erroProducao ? ' · ⚠️ sem conexão, dados da última atualização'
+      : (infoProducao && infoProducao.parcial ? ' · ⚠️ parte do histórico indisponível' : '');
+    chip.textContent = '✓ Produção — ' + indiceProducao.length + ' pedidos' + hora + aviso;
+    chip.className = 'fila-chip ' + (erroProducao || (infoProducao && infoProducao.parcial) ? 'pul' : 'ok');
+  } else {
+    chip.textContent = atualizando ? 'Carregando produção...' : '⚠️ Produção indisponível — toque para tentar de novo';
+    chip.className = 'fila-chip' + (atualizando ? '' : ' pul');
+  }
+
+  if (indiceFila) {
+    chipF.textContent = '✓ Programação (fila) — ' + indiceFila.length + ' pedidos' +
+      (erroFila ? ' · ⚠️ sem conexão, dados da última atualização' : '');
+    chipF.className = 'fila-chip ' + (erroFila ? 'pul' : 'ok');
+  } else {
+    chipF.textContent = atualizando ? 'Carregando programação...' : '⚠️ Programação indisponível — toque para tentar de novo';
+    chipF.className = 'fila-chip' + (atualizando ? '' : ' pul');
+  }
+}
+
+
+/* ===== busca =====
+   Busca com o mínimo de dado possível — usa o que tiver preenchido, na
+   ordem de mais preciso pra menos: OC (quase não se repete) → medida
+   (largura+comprimento, quantidade só afina se preenchida) → cliente sozinho
+   (só entra em jogo com 3+ letras, senão gera lista demais). Cliente, quando
+   também preenchido junto com OC ou medida, só serve pra refinar ainda mais
+   — nunca é obrigatório. Roda sozinha (sem precisar de botão) a cada
+   mudança, com um pequeno atraso pra não buscar a cada tecla solta. */
+let buscaDebounce = null;
+function agendaBusca() {
+  clearTimeout(buscaDebounce);
+  buscaDebounce = setTimeout(buscar, 250);
+}
+
+function limpaBusca() {
+  $('formBusca').reset();
+  $('resultados').innerHTML = '';
+}
+
+let ultimoAchadosProduzido = [];
+let ultimoAchadosFila = [];
+let ultimoClienteBuscado = '';
+
+function buscar(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  const cliente = $('bCliente').value;
+  const oc = normOC($('bOC').value);
+  const op_ = normOC($('bOP').value);
+  const of_ = normOC($('bOF').value);
+  const larg = +$('bLarg').value || 0;
+  const compr = +$('bCompr').value || 0;
+  const qtde = +$('bQtde').value || 0;
+  const clienteOk = cliente.trim().length >= 3;
+  const medidaOk = !!(larg && compr);
+
+  // precisa de pelo menos um critério "forte" (OC, OP, OF, medida completa,
+  // ou cliente com 3+ letras) — os campos preenchidos combinam entre si (E),
+  // não substituem um ao outro.
+  if (!oc && !op_ && !of_ && !medidaOk && !clienteOk) { $('resultados').innerHTML = ''; return false; }
+
+  function acha(lista, soOF) {
+    if (!lista || !lista.length) return [];
+    return lista.filter(l => {
+      if (of_ && normOC(l.of) !== of_) return false;
+      if (soOF) return true; // visão da OF inteira: ignora os outros campos
+      if (oc && normOC(l.oc) !== oc) return false;
+      if (op_ && normOC(l.op) !== op_) return false;
+      if (medidaOk && (l.largMM !== larg || l.comprMM !== compr)) return false;
+      if (medidaOk && qtde && l.qtde !== qtde) return false;
+      if (cliente.trim() && !clienteBate(l.cliente, cliente)) return false;
+      return true;
+    });
+  }
+
+  // A planilha de programação (fila) às vezes continua com o pedido depois
+  // dele já ter sido produzido (não é atualizada automaticamente). Se achar
+  // a mesma OC + medida + quantidade nos dois lados, é o mesmo pedido — some
+  // com o "na fila" e mostra só "já produzido", pra não parecer duplicidade.
+  function filaPendente(fila, produzidos) {
+    return fila.filter(f => !produzidos.some(p =>
+      normOC(p.oc) === normOC(f.oc) && p.largMM === f.largMM && p.comprMM === f.comprMM &&
+      p.qtde === f.qtde && clienteBate(p.cliente, f.cliente)
+    ) && !(f.op && produzidos.some(p =>
+      normOC(p.op) === normOC(f.op) && p.largMM === f.largMM && p.comprMM === f.comprMM
+    )));
+  }
+
+  const achadosProduzido = acha(indiceProducao);
+  const achadosFila = filaPendente(acha(indiceFila), achadosProduzido);
+
+  // Busca por OF: mostra o resumo da OF inteira (quantas OPs, quantas produzidas,
+  // quais faltam) e avisa se algum outro campo preenchido está escondendo OPs.
+  let resumoOF = null;
+  if (of_) {
+    const prodOF = acha(indiceProducao, true);
+    const filaOF = filaPendente(acha(indiceFila, true), prodOF);
+    if (prodOF.length || filaOF.length) {
+      const escondidos = (prodOF.length - achadosProduzido.length) + (filaOF.length - achadosFila.length);
+      const campos = [];
+      if (oc) campos.push('OC'); if (op_) campos.push('OP'); if (medidaOk) campos.push('medida' + (qtde ? ' + qtde' : ''));
+      if (cliente.trim()) campos.push('cliente');
+      resumoOF = { of: $('bOF').value.trim(), prod: prodOF.length, parciais: prodOF.filter(ehParcial).length, fila: filaOF.length, faltam: filaOF, escondidos, campos };
+    }
+  }
+  ultimoAchadosProduzido = achadosProduzido;
+  ultimoAchadosFila = achadosFila;
+  ultimoClienteBuscado = cliente.trim();
+  renderResultado(achadosProduzido, achadosFila, resumoOF);
+  return false;
+}
+
+/* Produzida mas abaixo de 90% do pedido = ainda não totalizada: aparece em
+   "já produzido" (a produção existe), só que em laranja. Mesmo corte de 90%
+   usado pela baixa automática da Agenda. */
+function ehParcial(l) {
+  return l.status === 'produzido' && l.qtde > 0 && l.produzido != null && l.produzido < l.qtde * 0.9;
+}
+
+function linhaItem(l) {
+  const qtdeTxt = l.produzido != null
+    ? l.qtde + ' pedidas · ' + l.produzido + ' produzidas'
+    : l.qtde + ' chapas';
+  const parcial = ehParcial(l);
+  return '<div class="itemAchado' + (parcial ? ' parcial' : '') + '"><b>' + l.cliente + '</b>' +
+    '<span>' + (l.of ? 'OF ' + l.of + ' · ' : '') + (l.oc ? 'OC ' + l.oc + ' · ' : '') + (l.op ? 'OP ' + l.op + ' · ' : '') + (l.papel ? l.papel + ' · ' : '') +
+    l.largMM + '×' + l.comprMM + ' mm · ' + qtdeTxt +
+    (l.data ? ' · ' + l.data + (l.hora ? ' ' + l.hora : '') : '') +
+    (l.status === 'fila' ? ' · <i>' + l.arquivo + '</i>' : '') + '</span>' +
+    (parcial ? '<span class="tagParcial">⚠️ Parcial: ' + Math.round(l.produzido / l.qtde * 100) + '% do pedido — ainda não totalizada</span>' : '') + '</div>';
+}
+
+function limpaFiltrosExtras() {
+  ['bOC', 'bOP', 'bLarg', 'bCompr', 'bQtde', 'bCliente'].forEach(id => { $(id).value = ''; });
+  buscar();
+}
+
+function htmlResumoOF(r) {
+  if (!r) return '';
+  const total = r.prod + r.fila;
+  let h = '<div class="resumoOF"><b>OF ' + r.of + '</b> — ' + total + ' OP' + (total > 1 ? 's' : '') + ' no total: ' +
+    '<b>' + r.prod + ' já produzida' + (r.prod !== 1 ? 's' : '') + '</b>' +
+    (r.parciais ? ' (<b class="parcial">' + r.parciais + ' parcial' + (r.parciais > 1 ? 'is' : '') + ', abaixo de 90%</b>)' : '') +
+    (r.fila ? ' · <b class="falta">' + r.fila + ' faltando produzir</b> (OP ' + r.faltam.map(l => l.op || '?').join(', ') + ')' : ' · nenhuma faltando');
+  if (r.escondidos > 0) {
+    h += '<div class="avisoFiltro">⚠️ Está filtrando também por <b>' + r.campos.join(' + ') + '</b> — ' + r.escondidos +
+      ' OP' + (r.escondidos > 1 ? 's' : '') + ' desta OF não aparece' + (r.escondidos > 1 ? 'm' : '') + ' abaixo. ' +
+      '<button type="button" class="btn mini sec" onclick="limpaFiltrosExtras()">Ver a OF inteira</button></div>';
+  }
+  return h + '</div>';
+}
+
+function renderResultado(produzidos, fila, resumoOF) {
+  const box = $('resultados');
+  if (!produzidos.length && !fila.length && resumoOF && resumoOF.escondidos > 0) {
+    box.innerHTML = htmlResumoOF(resumoOF);
+    return;
+  }
+  if (!produzidos.length && !fila.length) {
+    box.innerHTML = '<div class="resultado nada"><h3>Não encontrado</h3>' +
+      '<p>Não achei esse pedido nem na produção já feita, nem na fila. Confira se os dois indicadores acima estão verdes (dados carregados) e se a OC/cliente/medida estão certos.</p></div>';
+    return;
+  }
+  let html = htmlResumoOF(resumoOF);
+  if (produzidos.length) {
+    html += '<div class="resultado produzido"><h3>✅ Já produzido</h3>' +
+      produzidos.map(linhaItem).join('') +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+      '<button type="button" class="btn mini sec" onclick="exportaRelatorioProduzidos()">📄 Gerar relatório (Excel)</button>' +
+      '<button type="button" class="btn mini sec" onclick="copiaAchadosProduzidos(this)">📋 Copiar linhas</button>' +
+      '</div></div>';
+  }
+  if (fila.length) {
+    html += '<div class="resultado fila"><h3>🟡 Na fila — ainda não produzido</h3>' +
+      fila.map(linhaItem).join('') +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+      '<button type="button" class="btn mini sec" onclick="exportaRelatorioFila()">📄 Gerar relatório (Excel)</button>' +
+      '<button type="button" class="btn mini sec" onclick="copiaAchadosFila(this)">📋 Copiar linhas</button>' +
+      '</div></div>';
+  }
+  box.innerHTML = html;
+}
+
+/* ---------- copiar linhas (pra colar em relatório já aberto) ----------
+   Mesmas colunas dos relatórios Excel acima, mas sem cabeçalho nem total —
+   só as linhas de dado, pra colar embaixo de um relatório que já foi
+   gerado antes (útil quando a busca é feita medida por medida: gera o
+   primeiro relatório em Excel, e só copia+cola as linhas das medidas
+   seguintes por cima). */
+function copiaFallback(texto, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = texto; ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); cb(); } catch (e) { alert('Não foi possível copiar automaticamente.'); }
+  document.body.removeChild(ta);
+}
+function copiaTexto(texto, ok) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(ok).catch(() => copiaFallback(texto, ok));
+  } else copiaFallback(texto, ok);
+}
+function avisaCopiado(btn) {
+  if (!btn) return;
+  const t = btn.textContent;
+  btn.textContent = 'Copiado!';
+  setTimeout(() => { btn.textContent = t; }, 1800);
+}
+function linhasTSVProduzidos(lista) {
+  return lista.map(l => {
+    const produzida = l.produzido != null ? l.produzido : 0;
+    const saldo = l.produzido != null ? (l.produzido - l.qtde) : 0;
+    const medidaTxt = String(l.largMM).padStart(4, '0') + ' X ' + String(l.comprMM).padStart(4, '0');
+    return [l.arquivo, l.cliente, l.op || '-', l.oc || '-', l.of || '-', l.papel || '-', medidaTxt, produzida, l.qtde, saldo].join('\t');
+  }).join('\n');
+}
+function linhasTSVFila(lista) {
+  return lista.map(l => {
+    const medidaTxt = String(l.largMM).padStart(4, '0') + ' X ' + String(l.comprMM).padStart(4, '0');
+    return [l.arquivo, l.cliente, l.op || '-', l.oc || '-', l.of || '-', l.papel || '-', medidaTxt, l.qtde, l.data || '-'].join('\t');
+  }).join('\n');
+}
+function copiaAchadosProduzidos(btn) {
+  if (!ultimoAchadosProduzido.length) { alert('Nenhum item já produzido pra copiar. Faça uma busca primeiro.'); return; }
+  copiaTexto(linhasTSVProduzidos(ultimoAchadosProduzido), () => avisaCopiado(btn));
+}
+function copiaAchadosFila(btn) {
+  if (!ultimoAchadosFila.length) { alert('Nenhum item na fila pra copiar. Faça uma busca primeiro.'); return; }
+  copiaTexto(linhasTSVFila(ultimoAchadosFila), () => avisaCopiado(btn));
+}
+
+function baixa(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+const slugArquivo = s => String(s).trim().toUpperCase()
+  .normalize('NFD').replace(/[̀-ͯ]/g, '') // tira acento
+  .replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+/* Nome do cliente pra usar no título/nome do arquivo do relatório: prefere o
+   nome completo como veio no relatório (mais descritivo) — só cai pro texto
+   digitado se o resultado misturar mais de um cliente (ex.: busca só por
+   medida, sem OC nem cliente). */
+function nomeClienteRelatorio(lista) {
+  const clientesUnicos = [...new Set(lista.map(l => l.cliente))];
+  return clientesUnicos.length === 1 ? clientesUnicos[0] : (ultimoClienteBuscado || 'Consulta');
+}
+
+/* Gera um Excel só com os pedidos "já produzidos" do resultado atual da
+   busca — mesmas colunas do relatório de produção já usado na Prime
+   (Arquivo Fonte, Cliente, OP, OC, OF, Medida, Qtd Produzida, Qtd Pedido,
+   Saldo), pra continuar compatível com quem já usa esse formato. */
+function exportaRelatorioProduzidos() {
+  if (!ultimoAchadosProduzido.length) { alert('Nenhum item já produzido pra exportar. Faça uma busca primeiro.'); return; }
+
+  const HEAD = ['Arquivo Fonte', 'Cliente', 'OP', 'OC', 'OF', 'Papel', 'Medida', 'Qtd Produzida', 'Qtd Pedido', 'Saldo'];
+  const brd = { style: 'thin', color: { rgb: 'CCD8E4' } };
+  const b4 = { top: brd, bottom: brd, left: brd, right: brd };
+  const aoa = [], estilos = {};
+
+  function addRow(cells, styleFn) {
+    const r = aoa.length;
+    aoa.push(cells);
+    cells.forEach((_, ci) => { estilos[XLSX.utils.encode_cell({ r, c: ci })] = styleFn(ci); });
+    return r;
+  }
+
+  addRow(HEAD, () => ({
+    font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '0F1E2E' } },
+    border: b4, alignment: { horizontal: 'center', wrapText: true }
+  }));
+
+  let totProduzida = 0, totPedido = 0, totSaldo = 0;
+  ultimoAchadosProduzido.forEach(l => {
+    const produzida = l.produzido != null ? l.produzido : 0;
+    const saldo = l.produzido != null ? (l.produzido - l.qtde) : 0;
+    totProduzida += produzida; totPedido += l.qtde; totSaldo += saldo;
+    const medidaTxt = String(l.largMM).padStart(4, '0') + ' X ' + String(l.comprMM).padStart(4, '0');
+    addRow([l.arquivo, l.cliente, l.op || '-', l.oc || '-', l.of || '-', l.papel || '-', medidaTxt, produzida, l.qtde, saldo],
+      ci => ({ border: b4, alignment: { horizontal: ci >= 7 ? 'right' : 'left' } }));
+  });
+
+  addRow(['', '', '', '', '', '', 'Total', totProduzida, totPedido, totSaldo], ci => ({
+    font: { bold: true }, fill: { fgColor: { rgb: 'DBE7F3' } }, border: b4,
+    alignment: { horizontal: ci >= 7 ? 'right' : 'left' }
+  }));
+
+  const agora = new Date();
+  const dataTxt = String(agora.getDate()).padStart(2, '0') + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/' + agora.getFullYear();
+  aoa.push([]);
+  const rNota = aoa.length;
+  aoa.push(['Relatório gerado em ' + dataTxt + '. Fonte: app de Controle de Produção e relatórios de turno — Consulta OC Prime.']);
+  estilos[XLSX.utils.encode_cell({ r: rNota, c: 0 })] = { font: { italic: true, sz: 10, color: { rgb: '51637A' } } };
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  Object.entries(estilos).forEach(([ref, s]) => { if (ws[ref]) ws[ref].s = s; });
+  ws['!cols'] = [{ wch: 42 }, { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 14 }, { wch: 13 }, { wch: 11 }, { wch: 9 }];
+  ws['!merges'] = [{ s: { r: rNota, c: 0 }, e: { r: rNota, c: HEAD.length - 1 } }];
+
+  const wb = XLSX.utils.book_new();
+  const clienteNome = nomeClienteRelatorio(ultimoAchadosProduzido);
+  const nomeBase = 'Relatorio_Producao_' + (slugArquivo(clienteNome) || 'CONSULTA');
+  XLSX.utils.book_append_sheet(wb, ws, ('Producao ' + clienteNome).slice(0, 31));
+
+  const dados = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([dados], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  baixa(blob, nomeBase + '.xlsx');
+}
+
+/* Igual à de cima, mas pros itens "na fila" (ainda não produzidos) — sem
+   coluna de produzida/saldo (não existe esse dado ainda), com a data do
+   pedido no lugar (essa sim é conhecida antes de produzir). */
+function exportaRelatorioFila() {
+  if (!ultimoAchadosFila.length) { alert('Nenhum item na fila pra exportar. Faça uma busca primeiro.'); return; }
+
+  const HEAD = ['Arquivo Fonte', 'Cliente', 'OP', 'OC', 'OF', 'Papel', 'Medida', 'Qtd Pedido', 'Data Pedido'];
+  const brd = { style: 'thin', color: { rgb: 'CCD8E4' } };
+  const b4 = { top: brd, bottom: brd, left: brd, right: brd };
+  const aoa = [], estilos = {};
+
+  function addRow(cells, styleFn) {
+    const r = aoa.length;
+    aoa.push(cells);
+    cells.forEach((_, ci) => { estilos[XLSX.utils.encode_cell({ r, c: ci })] = styleFn(ci); });
+    return r;
+  }
+
+  addRow(HEAD, () => ({
+    font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '8A6400' } },
+    border: b4, alignment: { horizontal: 'center', wrapText: true }
+  }));
+
+  let totPedido = 0;
+  ultimoAchadosFila.forEach(l => {
+    totPedido += l.qtde;
+    const medidaTxt = String(l.largMM).padStart(4, '0') + ' X ' + String(l.comprMM).padStart(4, '0');
+    addRow([l.arquivo, l.cliente, l.op || '-', l.oc || '-', l.of || '-', l.papel || '-', medidaTxt, l.qtde, l.data || '-'],
+      ci => ({ border: b4, alignment: { horizontal: ci === 7 ? 'right' : 'left' } }));
+  });
+
+  addRow(['', '', '', '', '', '', 'Total', totPedido, ''], ci => ({
+    font: { bold: true }, fill: { fgColor: { rgb: 'FFF3CD' } }, border: b4,
+    alignment: { horizontal: ci === 7 ? 'right' : 'left' }
+  }));
+
+  const agora = new Date();
+  const dataTxt = String(agora.getDate()).padStart(2, '0') + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/' + agora.getFullYear();
+  aoa.push([]);
+  const rNota = aoa.length;
+  aoa.push(['Relatório gerado em ' + dataTxt + '. Fonte: programação do dia (fila, ainda não produzida) — Consulta OC Prime.']);
+  estilos[XLSX.utils.encode_cell({ r: rNota, c: 0 })] = { font: { italic: true, sz: 10, color: { rgb: '51637A' } } };
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  Object.entries(estilos).forEach(([ref, s]) => { if (ws[ref]) ws[ref].s = s; });
+  ws['!cols'] = [{ wch: 42 }, { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 14 }, { wch: 11 }, { wch: 13 }];
+  ws['!merges'] = [{ s: { r: rNota, c: 0 }, e: { r: rNota, c: HEAD.length - 1 } }];
+
+  const wb = XLSX.utils.book_new();
+  const clienteNome = nomeClienteRelatorio(ultimoAchadosFila);
+  const nomeBase = 'Relatorio_Fila_' + (slugArquivo(clienteNome) || 'CONSULTA');
+  XLSX.utils.book_append_sheet(wb, ws, ('Fila ' + clienteNome).slice(0, 31));
+
+  const dados = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([dados], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  baixa(blob, nomeBase + '.xlsx');
+}
+
+/* ---------- início ---------- */
+atualizaDados();
+setInterval(() => { if (!document.hidden) atualizaDados(); }, REFRESH_MS);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) atualizaDados(); });
+if ('serviceWorker' in navigator && location.protocol.startsWith('http'))
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
